@@ -290,7 +290,7 @@ function renderAccounts() {
         <div class="empty-icon">⏳</div>
         <p class="empty-title">Chưa nhận được tín hiệu từ Minecraft</p>
         <p class="empty-desc">
-          Hãy mở game, bấm phím <strong>[H]</strong> và dán URL Web Dashboard để kết nối.
+          Hệ thống đã tự động kết nối với Mod. Hãy mở game Minecraft và đăng nhập vào server để bắt đầu đồng bộ dữ liệu.
         </p>
       </div>`;
     accountBadge.textContent = '0 Nick Online';
