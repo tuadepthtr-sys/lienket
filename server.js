@@ -159,22 +159,48 @@ const server = http.createServer(async (req, res) => {
       broadcastEvent('heartbeat', state.accounts[name]);
       broadcastEvent('globalStats', state.globalStats);
 
-      // Collect pending commands for this account
+      // Collect pending commands for this account (deliver each command only ONCE)
       const pending = [];
       if (state.commandQueue[name] && state.commandQueue[name].length > 0) {
         pending.push(...state.commandQueue[name]);
         delete state.commandQueue[name];
       }
+
+      const now = Date.now();
       if (state.commandQueue['all'] && state.commandQueue['all'].length > 0) {
-        pending.push(...state.commandQueue['all']);
+        // Filter out commands older than 30s
+        state.commandQueue['all'] = state.commandQueue['all'].filter(item => (now - item.timestamp) < 30000);
+
+        for (const item of state.commandQueue['all']) {
+          if (!item.deliveredTo) {
+            item.deliveredTo = [];
+          }
+          if (!item.deliveredTo.includes(name)) {
+            item.deliveredTo.push(name);
+            pending.push(item);
+          }
+        }
+
+        // Clean up commands that have already been delivered to all active accounts
+        const onlineAccounts = Object.keys(state.accounts).filter(acc => acc !== 'all');
+        if (onlineAccounts.length > 0) {
+          state.commandQueue['all'] = state.commandQueue['all'].filter(item =>
+            !onlineAccounts.every(acc => item.deliveredTo && item.deliveredTo.includes(acc))
+          );
+        }
       }
 
       const commandsToExecute = pending.map(item => item.command);
+      const commandItems = pending.map(item => ({
+        id: item.id,
+        command: item.command
+      }));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         status: 'ok',
-        pendingCommands: commandsToExecute
+        pendingCommands: commandsToExecute,
+        commandItems: commandItems
       }));
     } catch (e) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -227,6 +253,18 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+
+  // 4b. Clear Command Queue Endpoint
+  if (pathname === '/api/command/clear' && req.method === 'POST') {
+    state.commandQueue = {};
+    if (state.accounts['all']) {
+      delete state.accounts['all'];
+    }
+    broadcastEvent('commandQueueCleared', { timestamp: Date.now() });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', message: 'Hàng đợi lệnh đã được xóa' }));
     return;
   }
 

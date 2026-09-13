@@ -181,6 +181,26 @@ commandForm.addEventListener('submit', (e) => {
   }
 });
 
+// Handle Clear Queue Button
+const clearCmdBtn = document.getElementById('clear-cmd-btn');
+if (clearCmdBtn) {
+  clearCmdBtn.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/command/clear', { method: 'POST' });
+      const json = await res.json();
+      appendTerminalLine('🗑 Đã xóa toàn bộ hàng đợi lệnh thành công!', 'system-line');
+      commandStatusBadge.textContent = 'Hàng đợi trống';
+      commandStatusBadge.style.color = 'var(--text-muted)';
+      setTimeout(() => {
+        commandStatusBadge.textContent = 'Sẵn sàng';
+        commandStatusBadge.style.color = 'var(--accent-green)';
+      }, 2000);
+    } catch (err) {
+      appendTerminalLine(`✗ Lỗi xóa hàng đợi: ${err.message}`, 'cmd-result-err');
+    }
+  });
+}
+
 // Handle Quick Action Buttons
 document.querySelectorAll('.btn-quick').forEach(btn => {
   btn.addEventListener('click', () => {
