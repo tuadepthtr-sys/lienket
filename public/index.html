@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoSell & Guard • Live Operations Dashboard</title>
+  <meta name="description" content="Trung tâm giám sát thời gian thực cho Minecraft AutoSell Mod & Whitelist Guard">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-effects">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-badge">
+          <span class="live-dot pulse"></span>
+          <span class="brand-text">AUTOSELL GUARD</span>
+        </div>
+        <span class="version-tag">v1.21.1 • Render Live</span>
+      </div>
+
+      <div class="header-actions">
+        <div id="connection-status" class="status-pill status-connecting">
+          <span class="status-indicator"></span>
+          <span id="connection-text">Đang kết nối...</span>
+        </div>
+
+        <button id="sound-toggle-btn" class="btn-icon" title="Bật/Tắt Còi báo động khi có người lạ">
+          <span id="sound-icon">🔊</span>
+          <span class="btn-label">Còi báo</span>
+        </button>
+
+        <button id="clear-btn" class="btn-ghost" title="Xóa dữ liệu nhật ký">
+          <span>🧹 Xóa Log</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Stats Overview -->
+    <section class="stats-grid">
+      <div class="stat-card revenue-card">
+        <div class="stat-header">
+          <span class="stat-title">TỔNG THU NHẬP</span>
+          <span class="stat-icon">💰</span>
+        </div>
+        <div class="stat-value" id="global-earned">$0</div>
+        <div class="stat-sub" id="global-rate">Tốc độ: $0/h</div>
+      </div>
+
+      <div class="stat-card sales-card">
+        <div class="stat-header">
+          <span class="stat-title">TỔNG ĐƠN BÁN</span>
+          <span class="stat-icon">📦</span>
+        </div>
+        <div class="stat-value" id="global-sales">0</div>
+        <div class="stat-sub">Giao dịch thành công</div>
+      </div>
+
+      <div class="stat-card accounts-card">
+        <div class="stat-header">
+          <span class="stat-title">TÀI KHOẢN HOẠT ĐỘNG</span>
+          <span class="stat-icon">👥</span>
+        </div>
+        <div class="stat-value" id="active-accounts-count">0</div>
+        <div class="stat-sub" id="active-accounts-sub">Đang theo dõi live</div>
+      </div>
+
+      <div class="stat-card threats-card">
+        <div class="stat-header">
+          <span class="stat-title">CẢNH BÁO PHÁT HIỆN</span>
+          <span class="stat-icon">⚠️</span>
+        </div>
+        <div class="stat-value" id="threats-count">0</div>
+        <div class="stat-sub">Người lạ đột nhập</div>
+      </div>
+    </section>
+
+    <!-- Main Content Area: 2 Columns -->
+    <main class="dashboard-body">
+      <!-- Left Column: Live Account Cards -->
+      <section class="panel accounts-panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="panel-icon">🎮</span>
+            <h2>Trạng Thái Tài Khoản</h2>
+          </div>
+          <span class="badge" id="account-badge">0 Nick Online</span>
+        </div>
+
+        <div id="accounts-container" class="accounts-grid">
+          <div class="empty-state">
+            <div class="empty-icon">⏳</div>
+            <p class="empty-title">Chưa nhận được tín hiệu từ Minecraft</p>
+            <p class="empty-desc">
+              Hãy mở game, vào menu <strong>[H]</strong> trong Minecraft và dán đường link web này vào ô Web Dashboard để bắt đầu nhận dữ liệu.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Real-time Threat Radar / Alerts Feed -->
+      <section class="panel alerts-panel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="panel-icon">🚨</span>
+            <h2>Nhật Ký Cảnh Báo Người Lạ</h2>
+          </div>
+          <span class="threat-indicator-badge" id="threat-indicator">AN TOÀN</span>
+        </div>
+
+        <div class="alerts-feed-wrapper">
+          <div id="alerts-container" class="alerts-list">
+            <div class="empty-alerts">
+              <span>🛡️ Không có mối đe dọa nào gần đây. Khu vực an toàn!</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer with instructions -->
+    <footer class="footer">
+      <p>
+        AutoSell & GhastFarm Operations Console • Sẵn sàng chạy 24/7 trên <strong>Render.com</strong>
+      </p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

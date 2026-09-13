@@ -1,0 +1,16 @@
+{
+  "name": "autosell-web-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time Web Dashboard for Minecraft AutoSell Mod - Ready for Render.com deployment",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["minecraft", "dashboard", "autosell", "render"],
+  "author": "Antigravity",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
