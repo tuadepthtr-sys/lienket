@@ -25,7 +25,7 @@
           <span class="live-dot pulse"></span>
           <span class="brand-text">AUTOSELL GUARD</span>
         </div>
-        <span class="version-tag">v1.21.1 • Render Live</span>
+        <span class="version-tag">v1.21.1 • Remote Console</span>
       </div>
 
       <div class="header-actions">
@@ -81,6 +81,62 @@
         </div>
         <div class="stat-value" id="threats-count">0</div>
         <div class="stat-sub">Người lạ đột nhập</div>
+      </div>
+    </section>
+
+    <!-- Remote Command Console Section -->
+    <section class="panel command-panel">
+      <div class="panel-header">
+        <div class="panel-title-wrap">
+          <span class="panel-icon">🕹️</span>
+          <h2>Bảng Điều Khiển Từ Xa (Remote Command Console)</h2>
+        </div>
+        <span class="badge" id="command-status-badge">Sẵn sàng</span>
+      </div>
+
+      <div class="command-controls">
+        <!-- Target Selector & Quick Actions -->
+        <div class="command-row">
+          <div class="control-group">
+            <label for="target-select">Tài khoản nhận lệnh:</label>
+            <select id="target-select" class="custom-select">
+              <option value="all">⚡ Tất cả tài khoản (All Accounts)</option>
+            </select>
+          </div>
+
+          <div class="quick-actions-bar">
+            <span class="quick-label">Phím tắt nhanh:</span>
+            <button class="btn-quick" data-cmd="home 1">🏠 /home 1</button>
+            <button class="btn-quick" data-cmd="home 2">🏠 /home 2</button>
+            <button class="btn-quick" data-cmd="sell">💰 /sell</button>
+            <button class="btn-quick" data-cmd="spawn">⚡ /spawn</button>
+            <button class="btn-quick btn-quick-danger" data-cmd="QUIT">🛑 Thoát Server</button>
+          </div>
+        </div>
+
+        <!-- Custom Command Input -->
+        <form id="command-form" class="command-input-wrap">
+          <div class="input-prefix">/</div>
+          <input type="text" id="command-input" placeholder="Nhập lệnh (VD: pay Steve 50000, msg Friend Chào bạn, home 1)..." autocomplete="off">
+          <button type="submit" id="send-cmd-btn" class="btn-primary">
+            <span>🚀 Gửi Lệnh</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Live Terminal Output -->
+      <div class="terminal-wrapper">
+        <div class="terminal-header">
+          <div class="terminal-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <span class="terminal-title">LIVE COMMAND TERMINAL</span>
+        </div>
+        <div id="terminal-logs" class="terminal-content">
+          <div class="terminal-line system-line">[HỆ THỐNG] Console điều khiển từ xa đã kết nối. Nhập lệnh hoặc bấm phím tắt để điều khiển nhân vật...</div>
+        </div>
       </div>
     </section>
 

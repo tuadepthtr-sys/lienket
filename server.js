@@ -1,4 +1,4 @@
-// AutoSell Mod - Real-time Web Dashboard Server
+// AutoSell Mod - Real-time Web Dashboard & Remote Control Server
 // Pure Node.js implementation (Zero dependencies, instant deployment on Render.com)
 
 const http = require('http');
@@ -16,7 +16,10 @@ const state = {
     totalEarned: 0,
     totalSales: 0,
     startTime: Date.now()
-  }
+  },
+  // Remote Command Queue: { [accountName]: [ { id, command, time } ] }
+  commandQueue: {},
+  commandHistory: []
 };
 
 // Connected SSE clients
@@ -100,7 +103,12 @@ const server = http.createServer(async (req, res) => {
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive'
     });
-    res.write(`event: init\ndata: ${JSON.stringify(state)}\n\n`);
+    res.write(`event: init\ndata: ${JSON.stringify({
+      accounts: state.accounts,
+      alerts: state.alerts,
+      globalStats: state.globalStats,
+      commandHistory: state.commandHistory.slice(0, 30)
+    })}\n\n`);
     sseClients.add(res);
 
     req.on('close', () => {
@@ -116,7 +124,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 3. Heartbeat Endpoint
+  // 3. Heartbeat Endpoint (Mod calls this, and receives pending commands)
   if (pathname === '/api/heartbeat' && req.method === 'POST') {
     try {
       const data = await parseJsonBody(req);
@@ -151,8 +159,23 @@ const server = http.createServer(async (req, res) => {
       broadcastEvent('heartbeat', state.accounts[name]);
       broadcastEvent('globalStats', state.globalStats);
 
+      // Collect pending commands for this account
+      const pending = [];
+      if (state.commandQueue[name] && state.commandQueue[name].length > 0) {
+        pending.push(...state.commandQueue[name]);
+        delete state.commandQueue[name];
+      }
+      if (state.commandQueue['all'] && state.commandQueue['all'].length > 0) {
+        pending.push(...state.commandQueue['all']);
+      }
+
+      const commandsToExecute = pending.map(item => item.command);
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', message: 'Heartbeat received' }));
+      res.end(JSON.stringify({
+        status: 'ok',
+        pendingCommands: commandsToExecute
+      }));
     } catch (e) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
@@ -160,7 +183,77 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 4. Detection Alert Endpoint
+  // 4. Remote Command Enqueue Endpoint (Web calls this to send commands)
+  if (pathname === '/api/command' && req.method === 'POST') {
+    try {
+      const data = await parseJsonBody(req);
+      const target = data.target || 'all';
+      let cmd = (data.command || '').trim();
+
+      if (!cmd) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Command cannot be empty' }));
+        return;
+      }
+
+      // Ensure command format
+      if (cmd.startsWith('/')) {
+        cmd = cmd.substring(1).trim();
+      }
+
+      const cmdItem = {
+        id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        target: target,
+        command: cmd,
+        timestamp: Date.now(),
+        status: 'queued'
+      };
+
+      if (!state.commandQueue[target]) {
+        state.commandQueue[target] = [];
+      }
+      state.commandQueue[target].push(cmdItem);
+
+      state.commandHistory.unshift(cmdItem);
+      if (state.commandHistory.length > 50) {
+        state.commandHistory.pop();
+      }
+
+      broadcastEvent('commandQueued', cmdItem);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', item: cmdItem }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // 5. Command Result Callback Endpoint (Mod reports execution feedback)
+  if (pathname === '/api/command-result' && req.method === 'POST') {
+    try {
+      const data = await parseJsonBody(req);
+      const resultItem = {
+        account: data.account || 'Mod',
+        command: data.command || '',
+        success: data.success !== undefined ? data.success : true,
+        message: data.message || 'Lệnh đã thực thi trong game',
+        timestamp: Date.now()
+      };
+
+      broadcastEvent('commandResult', resultItem);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok' }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // 6. Detection Alert Endpoint
   if (pathname === '/api/detection' && req.method === 'POST') {
     try {
       const data = await parseJsonBody(req);
@@ -193,7 +286,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 5. Stats Endpoint
+  // 7. Stats Endpoint
   if (pathname === '/api/stats' && req.method === 'POST') {
     try {
       const data = await parseJsonBody(req);
@@ -212,7 +305,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 6. Test Endpoint
+  // 8. Test Endpoint
   if (pathname === '/api/test' && (req.method === 'POST' || req.method === 'GET')) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -224,19 +317,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 7. Clear Data Endpoint
+  // 9. Clear Data Endpoint
   if (pathname === '/api/clear' && req.method === 'POST') {
     state.accounts = {};
     state.alerts = [];
     state.globalStats.totalEarned = 0;
     state.globalStats.totalSales = 0;
+    state.commandQueue = {};
+    state.commandHistory = [];
     broadcastEvent('clear', {});
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'cleared' }));
     return;
   }
 
-  // 8. Serve Static Files from public/
+  // 10. Serve Static Files from public/
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
   const ext = path.extname(filePath).toLowerCase();
 
@@ -259,7 +354,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`=================================================`);
-  console.log(` AutoSell Web Dashboard Server Running!         `);
+  console.log(` AutoSell Web Dashboard & Remote Server Running!`);
   console.log(` Local URL:   http://localhost:${PORT}          `);
   console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`=================================================`);

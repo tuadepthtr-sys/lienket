@@ -1,4 +1,4 @@
-// AutoSell Web Dashboard Client Application
+// AutoSell Web Dashboard & Remote Control Client Application
 
 let soundEnabled = true;
 let eventSource = null;
@@ -21,6 +21,13 @@ const accountsContainer = document.getElementById('accounts-container');
 const accountBadge = document.getElementById('account-badge');
 const alertsContainer = document.getElementById('alerts-container');
 const threatIndicator = document.getElementById('threat-indicator');
+
+// Remote Command DOM Elements
+const targetSelect = document.getElementById('target-select');
+const commandForm = document.getElementById('command-form');
+const commandInput = document.getElementById('command-input');
+const terminalLogs = document.getElementById('terminal-logs');
+const commandStatusBadge = document.getElementById('command-status-badge');
 
 // Audio Synthesizer Alarm (No external audio file needed)
 function playThreatSound() {
@@ -84,6 +91,7 @@ clearBtn.addEventListener('click', async () => {
       renderAccounts();
       renderAlerts();
       updateGlobalStats();
+      terminalLogs.innerHTML = `<div class="terminal-line system-line">[HỆ THỐNG] Đã xóa toàn bộ nhật ký.</div>`;
     } catch (e) {
       console.error(e);
     }
@@ -113,6 +121,95 @@ function updateConnectionStatus(status, text) {
   connectionText.textContent = text;
 }
 
+// Append Line to Terminal
+function appendTerminalLine(text, type = 'system-line') {
+  const time = new Date().toTimeString().split(' ')[0];
+  const div = document.createElement('div');
+  div.className = `terminal-line ${type}`;
+  div.textContent = `[${time}] ${text}`;
+  terminalLogs.appendChild(div);
+  terminalLogs.scrollTop = terminalLogs.scrollHeight;
+}
+
+// Send Command via API
+async function sendRemoteCommand(commandText, target = null) {
+  const selectedTarget = target || targetSelect.value;
+  let cmd = commandText.trim();
+  if (!cmd) return;
+
+  if (cmd.startsWith('/')) {
+    cmd = cmd.substring(1).trim();
+  }
+
+  commandStatusBadge.textContent = 'Đang gửi...';
+  commandStatusBadge.style.color = '#fbbf24';
+
+  try {
+    const res = await fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target: selectedTarget,
+        command: cmd
+      })
+    });
+    const json = await res.json();
+    if (json.status === 'ok') {
+      appendTerminalLine(`➔ Đã xếp hàng lệnh /${cmd} gửi tới: [${selectedTarget === 'all' ? 'Tất cả tài khoản' : selectedTarget}]`, 'cmd-sent');
+      commandStatusBadge.textContent = 'Đã gửi vào hàng đợi';
+      commandStatusBadge.style.color = '#34d399';
+    } else {
+      appendTerminalLine(`✗ Lỗi: ${json.error}`, 'cmd-result-err');
+    }
+  } catch (err) {
+    appendTerminalLine(`✗ Lỗi kết nối máy chủ: ${err.message}`, 'cmd-result-err');
+  }
+
+  setTimeout(() => {
+    commandStatusBadge.textContent = 'Sẵn sàng';
+    commandStatusBadge.style.color = 'var(--accent-green)';
+  }, 2500);
+}
+
+// Handle Form Submit
+commandForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const cmd = commandInput.value.trim();
+  if (cmd) {
+    sendRemoteCommand(cmd);
+    commandInput.value = '';
+  }
+});
+
+// Handle Quick Action Buttons
+document.querySelectorAll('.btn-quick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const cmd = btn.getAttribute('data-cmd');
+    if (cmd) {
+      if (cmd === 'QUIT' && !confirm('Bạn có chắc muốn gửi lệnh THOÁT SERVER đến tài khoản được chọn?')) {
+        return;
+      }
+      sendRemoteCommand(cmd);
+    }
+  });
+});
+
+// Update Target Selector options based on active accounts
+function updateTargetOptions() {
+  const currentVal = targetSelect.value;
+  const onlineNames = Object.keys(accountsData);
+
+  // Keep first option
+  targetSelect.innerHTML = '<option value="all">⚡ Tất cả tài khoản (All Accounts)</option>';
+  for (const name of onlineNames) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `👤 ${name}`;
+    if (name === currentVal) opt.selected = true;
+    targetSelect.appendChild(opt);
+  }
+}
+
 // Initialize SSE Connection
 function connectSSE() {
   if (eventSource) {
@@ -139,6 +236,7 @@ function connectSSE() {
     renderAccounts();
     renderAlerts();
     updateGlobalStats();
+    updateTargetOptions();
   });
 
   eventSource.addEventListener('heartbeat', (e) => {
@@ -146,6 +244,7 @@ function connectSSE() {
     accountsData[acc.account] = acc;
     renderAccounts();
     updateGlobalStats();
+    updateTargetOptions();
   });
 
   eventSource.addEventListener('detection', (e) => {
@@ -154,6 +253,18 @@ function connectSSE() {
     if (alertsData.length > 50) alertsData.pop();
     renderAlerts();
     playThreatSound();
+    appendTerminalLine(`🚨 [CẢNH BÁO] Phát hiện ${alert.detectedPlayer} gần nick ${alert.account} (${alert.distance}m)!`, 'cmd-result-err');
+  });
+
+  eventSource.addEventListener('commandQueued', (e) => {
+    const item = JSON.parse(e.data);
+    // Already appended locally or show from other tabs
+  });
+
+  eventSource.addEventListener('commandResult', (e) => {
+    const res = JSON.parse(e.data);
+    const cls = res.success ? 'cmd-result-ok' : 'cmd-result-err';
+    appendTerminalLine(`✓ [${res.account}] Đã thực hiện: /${res.command} (${res.message || 'Thành công'})`, cls);
   });
 
   eventSource.addEventListener('clear', () => {
@@ -162,6 +273,7 @@ function connectSSE() {
     renderAccounts();
     renderAlerts();
     updateGlobalStats();
+    updateTargetOptions();
   });
 
   eventSource.onerror = () => {
